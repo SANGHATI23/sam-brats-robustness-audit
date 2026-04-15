@@ -1,28 +1,43 @@
-# SAM Medical Robustness Audit
+# A Robustness Audit of the Segment Anything Model for Multi-Organ Medical Image Segmentation Under Domain Shift
 
-**Cross-Organ Evaluation of Segment Anything Model (SAM) in Medical Imaging**
+**Sanghati Basu**
+MS Healthcare Informatics, University of Illinois Springfield
+`sbasu23@uis.edu` | ORCID: 0009-0001-2437-773X
 
 ---
 
 ## Overview
 
-This repository presents a comprehensive evaluation of the **Segment Anything Model (SAM)** across multiple medical imaging domains.
-The study investigates **segmentation performance, robustness under perturbations, and failure behavior** across different organs and imaging modalities.
+This repository contains all code, data, and results for a robustness audit of the **Segment Anything Model (SAM)** across three anatomical targets:
 
-### Organs & Modalities
+| Organ | Modality | Dataset |
+|---|---|---|
+| Brain tumour | MRI | BraTS 2021 |
+| Liver | CT | Medical Segmentation Decathlon Task 03 |
+| Spleen | CT | Medical Segmentation Decathlon Task 09 |
 
-* **Brain (MRI)** – BraTS dataset (tumor segmentation)
-* **Liver (CT)** – abdominal organ segmentation
-* **Spleen (CT)** – robustness-focused evaluation
+The study evaluates SAM ViT-B under oracle bounding-box prompts on 300 slices per organ, followed by a nine-condition perturbation protocol applied to the spleen CT evaluation set.
+
+---
+
+## Key Findings
+
+- SAM performance is strongly organ- and modality-dependent, driven primarily by boundary morphology and imaging contrast rather than perturbation magnitude.
+- Zero-shot SAM performs best on high-contrast CT organs: spleen achieves Dice 0.914, liver 0.853.
+- In the spleen robustness study, performance is **largely preserved** under all nine tested perturbations, with several conditions showing small positive ΔDice and no condition causing substantial degradation.
+- Brain tumour MRI remains the most challenging setting, with a 39.3% moderate-failure rate (Dice < 0.5) — substantially higher than liver (2.3%) and spleen (0.7%).
+- Comparison against published nnU-Net benchmarks shows absolute Dice gaps of 0.049 (spleen), 0.090 (liver), and 0.359 (brain), providing a quantitative reference for deployment-oriented evaluation.
+- These findings suggest that imaging modality, organ geometry, and boundary complexity are stronger determinants of SAM robustness than moderate image perturbation magnitude.
 
 ---
 
 ## Objectives
 
-* Evaluate baseline segmentation performance of SAM
-* Analyze robustness under real-world perturbations
-* Quantify failure rates across organs
-* Compare performance across imaging modalities (MRI vs CT)
+- Evaluate baseline SAM segmentation performance across organs and modalities
+- Analyse robustness under nine controlled perturbation conditions
+- Quantify failure rates using dual thresholds (Dice < 0.5 and Dice < 0.1)
+- Compare performance against published nnU-Net supervised baselines
+- Provide a deployment perspective for SAM in Health Digital Twin pipelines
 
 ---
 
@@ -30,103 +45,124 @@ The study investigates **segmentation performance, robustness under perturbation
 
 ### 1. Data Processing
 
-* MRI (Brain) and CT (Liver, Spleen) datasets used
-* CT images normalized using windowing (level=50, width=400)
-* 3D volumes converted into 2D axial slices
-* Only slices with non-empty masks retained
-
----
+- BraTS 2021 multi-parametric MRI — T1ce channel selected for maximum tumour contrast
+- Medical Segmentation Decathlon Tasks 03 (liver) and 09 (spleen)
+- CT images normalised using Hounsfield windowing (centre = 50 HU, width = 400 HU)
+- 3D volumes converted to 2D axial slices; only slices with non-empty masks retained
+- 300 slices per organ sampled from held-out test volumes
 
 ### 2. SAM Inference
 
-* Model: **SAM ViT-B**
-* Prompting: **Bounding box derived from ground truth masks**
-* Inference performed per slice
-
----
+- Model: SAM ViT-B (`vit_b` checkpoint)
+- Prompting: oracle bounding boxes derived from ground-truth masks
+- Results should be interpreted as best-case prompted SAM performance under ideal box localisation
+- Single-mask output mode; MRI slices converted to RGB by channel replication
 
 ### 3. Evaluation Metrics
 
-* **Dice Score**
-* **Intersection over Union (IoU)**
-* **Failure Rate (Dice < 0.5)**
-* **Severe Failure Rate (Dice < 0.1)**
+- Dice Similarity Coefficient (DSC)
+- Intersection over Union (IoU)
+- Failure rate at Dice < 0.5 (moderate) and Dice < 0.1 (severe)
 
----
+### 4. Robustness Testing (Spleen CT)
 
-### 4. Robustness Testing (Spleen Study)
+Nine perturbation conditions applied:
 
-The model was evaluated under multiple perturbations:
+| Family | Conditions |
+|---|---|
+| Gaussian noise | σ = 10, 25 HU |
+| Gaussian blur | kernel k = 3, 7 |
+| Downsampling | 0.5×, 0.25× (bicubic) |
+| Contrast scaling | 0.8×, 1.2× |
+| Gamma correction | γ = 0.8, 1.2 |
 
-* Gaussian Noise (σ = 10, 25)
-* Gaussian Blur (kernel = 3, 7)
-* Downsampling (0.5×, 0.25×)
-* Contrast scaling (0.8×, 1.2×)
-* Gamma correction (0.8, 1.2)
-
-Performance degradation measured using:
-
-* ΔDice (relative to clean baseline)
-* Failure rate under perturbation
+ΔDice and ΔIoU computed relative to clean baseline for each condition.
 
 ---
 
 ## Results Summary
 
-### Key Findings
+### Baseline Performance vs. nnU-Net
 
-* SAM performs strongly on **clean medical images**
-* Significant performance drop under **noise and resolution degradation**
-* CT-based organs show **higher sensitivity to perturbations**
-* Failure rates increase under domain shift conditions
+| Organ | SAM Dice | nnU-Net Dice | Abs. Dice Gap | Fail < 0.5 |
+|---|---|---|---|---|
+| Brain (MRI) | 0.515 ± 0.220 | 0.874 | 0.359 | 39.3% |
+| Liver (CT) | 0.853 ± 0.137 | 0.943 | 0.090 | 2.3% |
+| Spleen (CT) | 0.914 ± 0.085 | 0.963 | 0.049 | 0.7% |
+
+*nnU-Net values from Isensee et al., Nature Methods 2021, used as published reference benchmarks.*
+
+### Spleen Robustness
+
+Across all nine perturbation conditions, performance was largely preserved relative to the clean baseline (ΔDice range: −0.001 to +0.008). No condition caused substantial degradation. This pattern is consistent with a possible patch-level smoothing effect in ViT-B under moderate intensity shift.
 
 ---
 
 ## Repository Structure
 
 ```
-sam-medical-robustness/
+sam-brats-robustness-audit/
 │
-├── notebooks/
-│   ├── brain.ipynb
-│   ├── liver.ipynb
-│   └── spleen.ipynb
+├── Notebook/
+│   ├── 01_brain_brats_.ipynb
+│   ├── SAM_liver.ipynb
+│   └── sam_spleen_ct_robustness_-5.ipynb
 │
 ├── results/
 │   ├── brain_results.csv
+│   ├── brain_robustness_summary.csv
+│   ├── brain_prompt_variants.csv
 │   ├── liver_results.csv
+│   ├── liver_robustness_summary.csv
 │   ├── spleen_sam_boxprompt_metrics.csv
 │   ├── spleen_sam_robustness_results.csv
-│   ├── robustness_summary_table.csv
+│   ├── robustness_summary_table_FINAL.csv
 │   └── combined_summary.csv
 │
-├── figures/
-│   ├── figure1_dice.png
-│   ├── figure2_failure.png
-│   ├── figure3_robustness.png
-│   └── worst_cases_overlay.png
+├── src/
+│   └── inference.py
 │
-├── README.md
-└── requirements.txt
+├── brain_example_prediction.png
+├── liver_example_prediction.png
+├── brain_robustness_plot.png
+├── liver_robustness_plot.png
+├── robustness_delta_dice_barplot.png
+├── worst_cases_overlay.png
+└── README.md
 ```
 
 ---
 
-## Example Outputs
+## How to Run
 
-* Distribution of Dice and IoU scores
-* Failure rate analysis across organs
-* Robustness degradation curves
-* Visualization of worst-performing segmentation cases
+1. Open notebooks in Google Colab or Jupyter
+2. Install dependencies: `pip install torch opencv-python numpy pandas matplotlib nibabel tqdm segment-anything`
+3. Run each organ pipeline:
+   - `01_brain_brats_.ipynb` — brain tumour evaluation
+   - `SAM_liver.ipynb` — liver evaluation
+   - `sam_spleen_ct_robustness_-5.ipynb` — spleen baseline and robustness
 
 ---
 
-## Key Contributions
+## Limitations
 
-* First comparative evaluation of SAM across **multiple organs and modalities**
-* Detailed robustness analysis under **realistic image perturbations**
-* Failure-aware evaluation highlighting model limitations
-* Reproducible pipeline for medical segmentation benchmarking
+- Oracle bounding-box prompts represent best-case SAM performance; operational deployment would require an automated proposal stage
+- Evaluation restricted to 2D axial slices; volumetric consistency uncharacterised
+- Perturbations applied to pre-processed slices rather than raw DICOM volumes
+- nnU-Net comparison uses published benchmark values rather than direct reimplementation under matched conditions
+
+---
+
+## Citation
+
+If you use this code or results, please cite:
+
+```
+Basu, S. (2026). A Robustness Audit of the Segment Anything Model for
+Multi-Organ Medical Image Segmentation Under Domain Shift.
+University of Illinois Springfield.
+GitHub: https://github.com/SANGHATI23/sam-brats-robustness-audit
+```
 
 ---
 
@@ -145,43 +181,12 @@ segment-anything
 
 ---
 
-## How to Run
+## License
 
-1. Open notebooks in Google Colab
-2. Install dependencies
-3. Run each organ pipeline:
-
-   * brain.ipynb
-   * liver.ipynb
-   * spleen.ipynb
-4. Generate results and summary tables
-
----
-
-## Limitations
-
-* SAM requires prompt guidance (bounding box)
-* Performance degrades under domain shift
-* Evaluation limited to 2D slice-based inference
-
----
-
-## Future Work
-
-* Prompt-free segmentation evaluation
-* Fine-tuning SAM for medical imaging
-* Multi-modal fusion (MRI + CT)
-* Clinical validation across larger datasets
-
----
+This project is for research and educational purposes only.
 
 ## Author
 
-**SANGHATI BASU**
-MS Healthcare Informatics | Biomedical AI Research
-
----
-
-## 📄 License
-
-This project is for research and educational purposes only.
+**Sanghati Basu**
+MS Healthcare Informatics | University of Illinois Springfield
+ORCID: 0009-0001-2437-773X
