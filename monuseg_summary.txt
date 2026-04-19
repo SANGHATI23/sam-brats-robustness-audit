@@ -1,0 +1,7 @@
+MoNuSeg SAM robustness study
+===========================
+Images evaluated: 51
+Mean Dice: 0.3959
+Mean IoU : 0.2532
+Failure rate Dice<0.5: 78.43%
+Severe failure Dice<0.1: 0.00%
