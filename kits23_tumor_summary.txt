@@ -1,0 +1,7 @@
+KiTS23 SAM tumor-only robustness study
+====================================
+Tumor-positive slices: 1987
+Mean Dice: 0.8374
+Mean IoU : 0.7401
+Failure rate Dice<0.5: 3.47%
+Severe failure Dice<0.1: 0.75%
